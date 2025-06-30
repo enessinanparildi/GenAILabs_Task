@@ -28,23 +28,19 @@ def upload_chunk(chunk_json):
     with open('D:\GenAILabs_Task\Sample_chunks.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    text_list = [elem["text"] for elem in data]
-
     documents = [Document(text=elem["text"]) for elem in data]
 
     db = chromadb.PersistentClient(path="./storage/chroma")
-    collection_name = "articles"
+    collection_name = "articles_chunk_database"
+    chroma_collection = db.get_or_create_collection(collection_name)
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 
-    if collection_name not in [col.name for col in db.list_collections()]:
-        chroma_collection = db.get_or_create_collection(collection_name)
-        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+    if chroma_collection.count() == 0:
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
         chroma_index = VectorStoreIndex.from_documents(documents, storage_context=storage_context,
                                                        embed_model=embed_model)
     else:
-        chroma_collection = db.get_or_create_collection(collection_name)
-        chroma_vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-        chroma_index = VectorStoreIndex.from_vector_store(vector_store=chroma_vector_store, embed_model=embed_model)
+        chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
         chroma_index.insert_nodes(documents)
 
     return {"Hello": "World"}
