@@ -9,11 +9,19 @@ from llama_index.core import StorageContext
 import json
 import chromadb
 from llama_index.core.schema import Document
+from llama_index.core.retrievers import VectorIndexRetriever
+
 
 embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
 
 app = FastAPI()
 
+from pydantic import BaseModel
+
+class SearchPayload(BaseModel):
+    query: str
+    k: int
+    min_score: float
 
 @app.put("/api/upload")
 def upload_chunk(chunk_json):
@@ -46,6 +54,29 @@ def upload_chunk(chunk_json):
     return {"Hello": "World"}
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+@app.post("/api/similarity_search")
+def search(query_dict: SearchPayload):
+
+    embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
+
+
+    db = chromadb.PersistentClient(path="./storage/chroma")
+    collection_name = "articles_chunk_database"
+    chroma_collection = db.get_or_create_collection(collection_name)
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+    chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
+
+    retriever = VectorIndexRetriever(
+        index=chroma_index,
+        similarity_top_k=query_dict.k,
+        alpha=None,
+        doc_ids=None,
+    )
+
+    example_query = "Given the adaptability of velvet bean to various environmental conditions, including its tolerance for long dry spells and poor soils, how might its agronomic traits contribute to food security and soil fertility in semi-arid regions such as natural regions IV and V of Zimbabwe?"
+
+    results = retriever.retrieve(query_dict.query)
+    filtered_results = [r for r in results if r.score >= query_dict.min_score]
+    result_list = [result.text for result in filtered_results]
+
+    return result_list
