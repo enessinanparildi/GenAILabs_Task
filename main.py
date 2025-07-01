@@ -1,7 +1,6 @@
 from typing import Union
 
 import json
-from fastapi import FastAPI
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -13,9 +12,8 @@ from llama_index.core.retrievers import VectorIndexRetriever
 from pydantic import BaseModel, HttpUrl
 from pydantic import ValidationError
 from typing import List
-
-
-embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
+from fastapi import FastAPI,status
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
@@ -41,18 +39,7 @@ class InputChunk(BaseModel):
 @app.put("/api/upload")
 def upload_chunk(json_file_url: str):
 
-
-    with open('D:\GenAILabs_Task\Sample_chunks.json', 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
     with open(json_file_url, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-
-    embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
-    # Load your documents
-
-    with open('D:\GenAILabs_Task\Sample_chunks.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     documents = []
@@ -77,6 +64,8 @@ def upload_chunk(json_file_url: str):
         )
         documents.append(doc)
 
+    embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
+
     db = chromadb.PersistentClient(path="./storage/chroma")
     collection_name = "articles_chunk_database"
     chroma_collection = db.get_or_create_collection(collection_name)
@@ -90,14 +79,16 @@ def upload_chunk(json_file_url: str):
         chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
         chroma_index.insert_nodes(documents)
 
-    return {"Hello": "World"}
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={"message": "Request accepted for processing"}
+    )
 
 
 @app.post("/api/similarity_search")
 def search(query_dict: SearchPayload):
 
     embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
-
 
     db = chromadb.PersistentClient(path="./storage/chroma")
     collection_name = "articles_chunk_database"
@@ -112,7 +103,7 @@ def search(query_dict: SearchPayload):
         doc_ids=None,
     )
 
-    example_query = "Given the adaptability of velvet bean to various environmental conditions, including its tolerance for long dry spells and poor soils, how might its agronomic traits contribute to food security and soil fertility in semi-arid regions such as natural regions IV and V of Zimbabwe?"
+    #example_query = "Given the adaptability of velvet bean to various environmental conditions, including its tolerance for long dry spells and poor soils, how might its agronomic traits contribute to food security and soil fertility in semi-arid regions such as natural regions IV and V of Zimbabwe?"
 
     results = retriever.retrieve(query_dict.query)
     filtered_results = [r for r in results if r.score >= query_dict.min_score]
@@ -120,7 +111,13 @@ def search(query_dict: SearchPayload):
 
     return result_list
 
-@app.get("/api/{journal_id}")
-async def get_journal(journal_id: int):
 
-    return {"journal_id": journal_id, "status": "Fetched successfully"}
+@app.get("/api/{journal_id}")
+def get_journal(journal_name: str):
+
+    db = chromadb.PersistentClient(path="./storage/chroma")
+    collection_name = "articles_chunk_database"
+    chroma_collection = db.get_or_create_collection(collection_name)
+    results = chroma_collection.get(where={"journal": journal_name})
+
+    return results
