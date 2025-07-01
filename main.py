@@ -10,25 +10,44 @@ import json
 import chromadb
 from llama_index.core.schema import Document
 from llama_index.core.retrievers import VectorIndexRetriever
+from pydantic import BaseModel, HttpUrl
+from pydantic import ValidationError
+from typing import List
 
 
 embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
 
 app = FastAPI()
 
-from pydantic import BaseModel
 
 class SearchPayload(BaseModel):
     query: str
     k: int
     min_score: float
 
+class InputChunk(BaseModel):
+    id: str
+    source_doc_id: str
+    chunk_index: int
+    section_heading: str
+    journal: str
+    publish_year: int
+    usage_count: int
+    attributes: List[str]
+    link: HttpUrl
+    text: str
+
+
 @app.put("/api/upload")
-def upload_chunk(chunk_json):
+def upload_chunk(json_file_url: str):
 
 
     with open('D:\GenAILabs_Task\Sample_chunks.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
+
+    with open(json_file_url, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
 
     embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
     # Load your documents
@@ -36,7 +55,27 @@ def upload_chunk(chunk_json):
     with open('D:\GenAILabs_Task\Sample_chunks.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    documents = [Document(text=elem["text"]) for elem in data]
+    documents = []
+    for item in data:
+        try:
+            chunk = InputChunk(**item)
+        except ValidationError as e:
+            print(e)
+
+        doc = Document(
+            text=item["text"],
+            metadata={
+                "id": item["id"],
+                "chunk_index": item["chunk_index"],
+                "section_heading": item["section_heading"],
+                "journal": item["journal"],
+                "publish_year": item["publish_year"],
+                "usage_count": item["usage_count"],
+                "attributes": ", ".join(item["attributes"]),
+                "source_doc_id": item["source_doc_id"]
+            }
+        )
+        documents.append(doc)
 
     db = chromadb.PersistentClient(path="./storage/chroma")
     collection_name = "articles_chunk_database"
@@ -80,3 +119,8 @@ def search(query_dict: SearchPayload):
     result_list = [result.text for result in filtered_results]
 
     return result_list
+
+@app.get("/api/{journal_id}")
+async def get_journal(journal_id: int):
+
+    return {"journal_id": journal_id, "status": "Fetched successfully"}
