@@ -1,6 +1,7 @@
 import uvicorn
 import time
 import requests
+import chromadb
 from threading import Thread
 
 from llama_index.core.indices.list.base import ListIndex
@@ -47,6 +48,8 @@ def run_chatbot(example_query, filtered_results):
 
     node_list = [dict_to_node_with_score(d) for d in filtered_results]
 
+    update_usage_count(node_list)
+
     index = ListIndex(nodes=[elem.node for elem in node_list])
 
     SAFE = [
@@ -83,6 +86,7 @@ def run_chatbot(example_query, filtered_results):
     response = query_engine.query(example_query)
     print("CHATBOT RESPONSE")
     print(response)
+
 
     for node in response.source_nodes:
         print(node.node.metadata["source_doc_id"])
@@ -127,6 +131,23 @@ def dict_to_node_with_score(node_dict):
         score=node_dict['score']
     )
     return node_with_score
+
+def update_usage_count(filtered_results):
+
+    db = chromadb.PersistentClient(path="./storage/chroma")
+    collection_name = "articles_chunk_database"
+    chroma_collection = db.get_or_create_collection(collection_name)
+
+    id_list = [result.id_ for result in filtered_results]
+
+    def update_metadata(metadata: dict):
+        for key, value in metadata.items():
+            if key == "usage_count":
+                metadata[key] = metadata[key] + 1
+        return metadata
+
+    batch = chroma_collection.get(ids=id_list, include=["metadatas"])
+    chroma_collection.update(ids=batch["ids"], metadatas=[update_metadata(metadata) for metadata in batch["metadatas"]])
 
 
 
