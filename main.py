@@ -1,19 +1,23 @@
 from typing import Union
 
-import json
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import VectorStoreIndex
-from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core import StorageContext
-import json
-import chromadb
 from llama_index.core.schema import Document
 from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.vector_stores.chroma import ChromaVectorStore
+
+import json
+import chromadb
+
 from pydantic import BaseModel, HttpUrl
 from pydantic import ValidationError
-from typing import List
-from fastapi import FastAPI,status
+
+from typing import Optional, List
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 from fastapi.responses import JSONResponse
+import requests
+import os
 
 app = FastAPI()
 
@@ -36,14 +40,40 @@ class InputChunk(BaseModel):
     text: str
 
 
-@app.put("/api/upload")
-def upload_chunk(json_file_url: str):
+def fetch_json_from_url(file_url: str):
+    try:
+        response = requests.get(file_url)
+        response.raise_for_status()  # Raises HTTPError for bad status codes
+        data = response.json()       # Parses JSON response
+        return data
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch JSON from URL: {e}")
 
-    with open(json_file_url, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+@app.put("/api/upload")
+def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form(None),
+                 file: Optional[str] = Form(...)):
+
+
+    if (file_url is None and file is None) or (file_url is not None and file is not None):
+        raise HTTPException(status_code=400, detail="Provide exactly one of file_url or file")
+
+    if file_url:
+        json_data = fetch_json_from_url(file_url)
+
+    if file:
+        if not os.path.exists(file):
+            raise HTTPException(status_code=400, detail="File not found on server")
+
+        try:
+            with open(file, "r", encoding="utf-8") as f:
+                json_data = json.load(f)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON file")
+
+
 
     documents = []
-    for item in data:
+    for item in json_data:
         try:
             chunk = InputChunk(**item)
         except ValidationError as e:
@@ -79,9 +109,10 @@ def upload_chunk(json_file_url: str):
         chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
         chroma_index.insert_nodes(documents)
 
+    print("upload_done")
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
-        content={"message": "Request accepted for processing"}
+        content={"message": f"Processing file from URL {file_url} with schema {schema_version}"}
     )
 
 
@@ -109,7 +140,7 @@ def search(query_dict: SearchPayload):
     filtered_results = [r for r in results if r.score >= query_dict.min_score]
     result_list = [result.text for result in filtered_results]
 
-    return result_list
+    return result_list, filtered_results
 
 
 @app.get("/api/{journal_id}")
