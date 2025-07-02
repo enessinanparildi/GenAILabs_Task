@@ -6,6 +6,10 @@ from llama_index.core import StorageContext
 from llama_index.core.schema import Document
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.core.node_parser import SimpleNodeParser
+from llama_index.core.storage.docstore import SimpleDocumentStore
+from llama_index.core.ingestion import IngestionPipeline
+
 
 import json
 import chromadb
@@ -70,7 +74,9 @@ def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON file")
 
-
+    def create_unique_doc_id(item):
+        """Create a unique ID based on source_doc_id and chunk_index"""
+        return f"{item['source_doc_id']}_{item['chunk_index']}"
 
     documents = []
     for item in json_data:
@@ -81,6 +87,7 @@ def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form
 
         doc = Document(
             text=item["text"],
+            id_=create_unique_doc_id(item),
             metadata={
                 "id": item["id"],
                 "chunk_index": item["chunk_index"],
@@ -89,32 +96,49 @@ def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form
                 "publish_year": item["publish_year"],
                 "usage_count": item["usage_count"],
                 "attributes": ", ".join(item["attributes"]),
-                "source_doc_id": item["source_doc_id"]
+                "source_doc_id": item["source_doc_id"],
+                "url_link": item['link']
             }
         )
         documents.append(doc)
 
     embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
 
-    db = chromadb.PersistentClient(path="./storage/chroma")
-    collection_name = "articles_chunk_database"
-    chroma_collection = db.get_or_create_collection(collection_name)
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-
-    if chroma_collection.count() == 0:
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        chroma_index = VectorStoreIndex.from_documents(documents, storage_context=storage_context,
-                                                       embed_model=embed_model)
-    else:
-        chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
-        chroma_index.insert_nodes(documents)
+    chroma_index = upload_db_with_deduplication(documents, embed_model)
 
     print("upload_done")
+
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content={"message": f"Processing file from URL {file_url} with schema {schema_version}"}
     )
 
+def upload_db_with_deduplication(documents, embed_model):
+
+    db = chromadb.PersistentClient(path="./storage/chroma")
+    collection_name = "articles_7"
+    chroma_collection = db.get_or_create_collection(collection_name)
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+    # Run pipeline with deduplication
+
+    pipeline = IngestionPipeline(
+        transformations=[
+            SimpleNodeParser(),
+            embed_model,
+        ],
+        vector_store=vector_store,
+        docstore=SimpleDocumentStore()
+    )
+
+    if chroma_collection.count() == 0:
+        pipeline.run(documents=documents, show_progress=True)
+        pipeline.persist(persist_dir="./data")
+    else:
+        pipeline.load(persist_dir="./data")
+        pipeline.run(documents=documents, show_progress=True)
+
+    chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
+    return chroma_index
 
 @app.post("/api/similarity_search")
 def search(query_dict: SearchPayload):
@@ -133,8 +157,6 @@ def search(query_dict: SearchPayload):
         alpha=None,
         doc_ids=None,
     )
-
-    #example_query = "Given the adaptability of velvet bean to various environmental conditions, including its tolerance for long dry spells and poor soils, how might its agronomic traits contribute to food security and soil fertility in semi-arid regions such as natural regions IV and V of Zimbabwe?"
 
     results = retriever.retrieve(query_dict.query)
     filtered_results = [r for r in results if r.score >= query_dict.min_score]
