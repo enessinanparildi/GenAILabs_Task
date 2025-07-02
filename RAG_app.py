@@ -9,8 +9,6 @@ from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.core import Settings
 from llama_index.core.schema import NodeWithScore, TextNode, NodeRelationship, RelatedNodeInfo
 
-gemini_api_key_2 = "AIzaSyAr6wyrlU4xSXgLGENicLFTuY7LfH2b7aY"
-
 
 def start_server():
     uvicorn.run("main:app", host="127.0.0.1", port=8000)
