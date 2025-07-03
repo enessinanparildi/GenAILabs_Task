@@ -9,6 +9,7 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.storage.docstore import SimpleDocumentStore
 from llama_index.core.ingestion import IngestionPipeline
+from fastapi import Depends
 
 
 import json
@@ -116,7 +117,7 @@ def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form
 def upload_db_with_deduplication(documents, embed_model):
 
     db = chromadb.PersistentClient(path="./storage/chroma")
-    collection_name = "articles_7"
+    collection_name = "articles_chunk_database_new"
     chroma_collection = db.get_or_create_collection(collection_name)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     # Run pipeline with deduplication
@@ -146,7 +147,7 @@ def search(query_dict: SearchPayload):
     embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
 
     db = chromadb.PersistentClient(path="./storage/chroma")
-    collection_name = "articles_chunk_database"
+    collection_name = "articles_chunk_database_new"
     chroma_collection = db.get_or_create_collection(collection_name)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
@@ -174,3 +175,33 @@ def get_journal(journal_name: str):
     results = chroma_collection.get(where={"journal": journal_name})
 
     return results
+
+
+class SummaryRequest(BaseModel):
+    journal: str
+
+
+
+def get_llm():
+    from RAG_app import get_llm_gemini
+    return get_llm_gemini()
+
+@app.post("/api/summary")
+def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
+    chunks = get_journal(request.journal)
+    print(chunks['documents'])
+
+    full_text = " ".join(chunks['documents'])
+
+    prompt = f"""
+    You are a scientific research assistant. Summarize the following journal content:
+
+    {full_text}
+
+    Summary:
+    """
+
+    response = llm.complete(prompt)
+
+    # Print result
+    return {"summary": response.text}

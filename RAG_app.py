@@ -9,7 +9,7 @@ from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.core import Settings
 from llama_index.core.schema import NodeWithScore, TextNode, NodeRelationship, RelatedNodeInfo
 
-gemini_api_key_2 = "AIzaSyAr6wyrlU4xSXgLGENicLFTuY7LfH2b7aY"
+gemini_api_key_2 = "AIzaSyAwuWjXxwb1pOfUaq_fp_o-aM8VlwJT9OQ"
 
 
 def start_server():
@@ -146,6 +146,48 @@ def update_usage_count(filtered_results):
     chroma_collection.update(ids=batch["ids"], metadatas=[update_metadata(metadata) for metadata in batch["metadatas"]])
 
 
+def get_llm_gemini():
+
+    SAFE = [
+        {
+            "category": "HARM_CATEGORY_DANGEROUS",
+            "threshold": "BLOCK_NONE",
+        },
+        {
+            "category": "HARM_CATEGORY_HARASSMENT",
+            "threshold": "BLOCK_NONE",
+        },
+        {
+            "category": "HARM_CATEGORY_HATE_SPEECH",
+            "threshold": "BLOCK_NONE",
+        },
+        {
+            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "threshold": "BLOCK_NONE",
+        },
+        {
+            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "threshold": "BLOCK_NONE",
+        },
+    ]
+
+
+    llm_gemini = GoogleGenAI(model_name="models/gemini-1.5-pro", api_key=gemini_api_key_2,
+                             temperature=0.01, safety_settings=SAFE)
+    return llm_gemini
+
+def run_summary_endpoint():
+
+    summary_request = {
+        "journal": "ILRI extension brief"
+    }
+
+    response = requests.post("http://localhost:8000/api/summary", json=summary_request)
+
+    print("Status code:", response.status_code)
+    print("Summary:", response.json())
+    return response.json()
+
 
 if __name__ == "__main__":
     server_thread = Thread(target=start_server, daemon=True)
@@ -158,4 +200,6 @@ if __name__ == "__main__":
     run_upload()
     response_text = run_similarity_search(example_query_1)
 
-    run_chatbot(example_query_1, response_text.json()[1])
+    #run_chatbot(example_query_1, response_text.json()[1])
+    summary_text = run_summary_endpoint()
+
