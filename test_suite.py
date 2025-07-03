@@ -7,7 +7,7 @@ import requests
 
 # Import your app and models
 from main import app, InputChunk, SearchPayload, SummaryRequest
-from RAG_app import get_llm_gemini
+from utils import get_llm_gemini
 from pydantic import ValidationError
 
 client = TestClient(app)

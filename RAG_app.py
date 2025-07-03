@@ -6,6 +6,7 @@ from threading import Thread
 
 from llama_index.core.indices.list.base import ListIndex
 from llama_index.core import Settings
+
 import utils
 
 COLLECTION_NAME = "articles_chunk_database_new"
@@ -156,7 +157,7 @@ if __name__ == "__main__":
     response_text = run_similarity_search(example_query_3)
 
     run_chatbot(example_query_3, response_text.json()["filtered_results"])
-    
+
     summary_text = run_summary_endpoint()
     print("Summary:", summary_text['summary'])
 
