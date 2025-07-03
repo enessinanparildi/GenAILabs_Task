@@ -11,6 +11,7 @@ from llama_index.core.schema import NodeWithScore, TextNode, NodeRelationship, R
 
 
 COLLECTION_NAME = "articles_chunk_database_new"
+gemini_api_key_2 = "AIzaSyAwuWjXxwb1pOfUaq_fp_o-aM8VlwJT9OQ"
 
 def start_server():
     uvicorn.run("main:app", host="127.0.0.1", port=8000)
@@ -248,7 +249,7 @@ if __name__ == "__main__":
 
     response_text = run_similarity_search(example_query_2)
 
-    run_chatbot(example_query_2, response_text.json()[1])
+    run_chatbot(example_query_2, response_text.json()["filtered_results"])
     summary_text = run_summary_endpoint()
     print("Summary:", summary_text['summary'])
 
