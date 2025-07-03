@@ -138,6 +138,7 @@ def upload_db_with_deduplication(documents, embed_model):
     else:
         pipeline.load(persist_dir="./data")
         pipeline.run(documents=documents, show_progress=True)
+        pipeline.persist(persist_dir="./data")
 
     chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
     return chroma_index

@@ -233,8 +233,9 @@ if __name__ == "__main__":
     example_query_2 = "What is the optimal planting depth for mucuna?"
 
     run_upload()
-    response_text = run_similarity_search(example_query_1)
+    response_text = run_similarity_search(example_query_2)
 
-    run_chatbot(example_query_1, response_text.json()[1])
+    run_chatbot(example_query_2, response_text.json()[1])
     summary_text = run_summary_endpoint()
+    print("Summary:", summary_text)
 
