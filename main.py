@@ -10,7 +10,7 @@ from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.storage.docstore import SimpleDocumentStore
 from llama_index.core.ingestion import IngestionPipeline
 from fastapi import Depends
-
+from RAG_app import get_llm_gemini
 
 import json
 import chromadb
@@ -61,7 +61,7 @@ def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form
                  file: Optional[str] = Form(...)):
 
 
-    if (file_url is None and file is None) or (file_url is not None and file is not None):
+    if (not file_url and not file) or (file_url and file):
         raise HTTPException(status_code=400, detail="Provide exactly one of file_url or file")
 
     if file_url:
@@ -164,9 +164,8 @@ def search(query_dict: SearchPayload):
 
     results = retriever.retrieve(query_dict.query)
     filtered_results = [r for r in results if r.score >= query_dict.min_score]
-    result_list = [result.text for result in filtered_results]
 
-    return result_list, filtered_results
+    return filtered_results
 
 
 @app.get("/api/{journal_id}")
