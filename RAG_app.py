@@ -12,7 +12,6 @@ from llama_index.core.schema import NodeWithScore, TextNode, NodeRelationship, R
 
 COLLECTION_NAME = "articles_chunk_database_new"
 
-
 def start_server():
     uvicorn.run("main:app", host="127.0.0.1", port=8000)
 
@@ -207,20 +206,33 @@ def get_llm_gemini():
     ]
 
 
-    llm_gemini = GoogleGenAI(model_name="models/gemini-1.5-pro", api_key=gemini_api_key_2,
+    llm_gemini = GoogleGenAI(model_name="models/gemini-2.5-flash", api_key=gemini_api_key_2,
                              temperature=0.01, safety_settings=SAFE)
     return llm_gemini
 
 def run_summary_endpoint():
 
     summary_request = {
-        "journal": "ILRI extension brief"
+        "journal": "extension_brief_mucuna.pdf"
     }
 
     response = requests.post("http://localhost:8000/api/summary", json=summary_request)
 
     print("Status code:", response.status_code)
-    print("Summary:", response.json())
+    return response.json()
+
+def run_compare_endpoint():
+
+    url = "http://localhost:8000/api/compare_papers"
+
+    payload = {
+        "doc_id_1": 'extension_brief_mucuna.pdf',
+        "doc_id_2": "1706.03762v7.pdf"
+    }
+
+    response = requests.post(url, json=payload)
+
+    print("Status code:", response.status_code)
     return response.json()
 
 
@@ -233,9 +245,13 @@ if __name__ == "__main__":
     example_query_2 = "What is the optimal planting depth for mucuna?"
 
     run_upload()
+
     response_text = run_similarity_search(example_query_2)
 
     run_chatbot(example_query_2, response_text.json()[1])
     summary_text = run_summary_endpoint()
-    print("Summary:", summary_text)
+    print("Summary:", summary_text['summary'])
+
+    compare_text = run_compare_endpoint()
+    print(compare_text['comparison'])
 

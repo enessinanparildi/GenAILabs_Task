@@ -132,6 +132,8 @@ def upload_db_with_deduplication(documents, embed_model):
         docstore=SimpleDocumentStore()
     )
 
+    print(chroma_collection.count())
+
     if chroma_collection.count() == 0:
         pipeline.run(documents=documents, show_progress=True)
         pipeline.persist(persist_dir="./data")
@@ -172,7 +174,7 @@ def get_journal(journal_name: str):
 
     db = chromadb.PersistentClient(path="./storage/chroma")
     chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
-    results = chroma_collection.get(where={"journal": journal_name})
+    results = chroma_collection.get(where={"source_doc_id": journal_name})
 
     return results
 
@@ -200,3 +202,41 @@ def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
     response = llm.complete(prompt)
     # Print result
     return {"summary": response.text}
+
+class CompareRequest(BaseModel):
+    doc_id_1: str
+    doc_id_2: str
+
+@app.post("/api/compare_papers")
+def compare_papers(request: CompareRequest, llm = Depends(get_llm)):
+    # Retrieve document chunks
+    chunks = get_journal(request.doc_id_1)
+    full_text_1 = " ".join(chunks['documents'])
+
+    chunks = get_journal(request.doc_id_2)
+    full_text_2 = " ".join(chunks['documents'])
+
+
+    # Merge into full text
+
+    # Construct prompt
+    prompt = f"""
+    You are a scientific reviewer. Compare the following two research documents.
+
+    === Paper 1 ===
+    {full_text_1}
+
+    === Paper 2 ===
+    {full_text_2}
+
+    Provide a structured comparison including:
+    - Objectives
+    - Methodology
+    - Findings
+    - Differences
+    - Key strengths/limitations
+    """
+
+    response = llm.complete(prompt)
+
+    return {"comparison": response.text}
