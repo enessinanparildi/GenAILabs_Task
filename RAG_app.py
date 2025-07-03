@@ -10,6 +10,8 @@ from llama_index.core import Settings
 from llama_index.core.schema import NodeWithScore, TextNode, NodeRelationship, RelatedNodeInfo
 
 
+COLLECTION_NAME = "articles_chunk_database_new"
+
 
 def start_server():
     uvicorn.run("main:app", host="127.0.0.1", port=8000)
@@ -43,7 +45,13 @@ def run_chatbot(example_query, filtered_results):
 
     node_list = [dict_to_node_with_score(d) for d in filtered_results]
 
+    print("Usage count before update")
+    check_usage_count(node_list)
+
     update_usage_count(node_list)
+
+    print("Usage count after update")
+    check_usage_count(node_list)
 
     index = ListIndex(nodes=[elem.node for elem in node_list])
 
@@ -79,13 +87,16 @@ def run_chatbot(example_query, filtered_results):
 
 
     response = query_engine.query(example_query)
+    print("-------------------------")
+
     print("CHATBOT RESPONSE")
     print(response)
 
-
+    print("Citations")
     for node in response.source_nodes:
         print(node.node.metadata["source_doc_id"])
         print(node.node.metadata["id"])
+        print("-------------------------")
 
     return response
 
@@ -130,8 +141,7 @@ def dict_to_node_with_score(node_dict):
 def update_usage_count(filtered_results):
 
     db = chromadb.PersistentClient(path="./storage/chroma")
-    collection_name = "articles_chunk_database"
-    chroma_collection = db.get_or_create_collection(collection_name)
+    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
 
     id_list = [result.id_ for result in filtered_results]
 
@@ -143,6 +153,32 @@ def update_usage_count(filtered_results):
 
     batch = chroma_collection.get(ids=id_list, include=["metadatas"])
     chroma_collection.update(ids=batch["ids"], metadatas=[update_metadata(metadata) for metadata in batch["metadatas"]])
+
+def check_usage_count(filtered_results):
+
+    db = chromadb.PersistentClient(path="./storage/chroma")
+    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
+
+    id_list = [result.id_ for result in filtered_results]
+    batch = chroma_collection.get(ids=id_list, include=["metadatas"])
+
+    usage_counts = []
+    for metadata in batch.get("metadatas", []):
+        usage = metadata.get("usage_count")  # default to 0 if missing
+        usage_counts.append(usage)
+
+    print("Usage counts search results:", usage_counts)
+
+    batch = chroma_collection.get(include=["metadatas", "documents"])
+
+    usage_counts = []
+    for metadata in batch.get("metadatas", []):
+        usage = metadata.get("usage_count")
+        usage_counts.append(usage)
+
+    print("Total documents:", len(batch["ids"]))
+    print("Usage counts all instances:", usage_counts)
+
 
 
 def get_llm_gemini():
@@ -199,6 +235,6 @@ if __name__ == "__main__":
     run_upload()
     response_text = run_similarity_search(example_query_1)
 
-    #run_chatbot(example_query_1, response_text.json()[1])
+    run_chatbot(example_query_1, response_text.json()[1])
     summary_text = run_summary_endpoint()
 

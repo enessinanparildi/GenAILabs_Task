@@ -26,6 +26,8 @@ import os
 
 app = FastAPI()
 
+COLLECTION_NAME = "articles_chunk_database_new"
+
 
 class SearchPayload(BaseModel):
     query: str
@@ -117,8 +119,7 @@ def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form
 def upload_db_with_deduplication(documents, embed_model):
 
     db = chromadb.PersistentClient(path="./storage/chroma")
-    collection_name = "articles_chunk_database_new"
-    chroma_collection = db.get_or_create_collection(collection_name)
+    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     # Run pipeline with deduplication
 
@@ -147,8 +148,7 @@ def search(query_dict: SearchPayload):
     embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
 
     db = chromadb.PersistentClient(path="./storage/chroma")
-    collection_name = "articles_chunk_database_new"
-    chroma_collection = db.get_or_create_collection(collection_name)
+    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
 
@@ -170,8 +170,7 @@ def search(query_dict: SearchPayload):
 def get_journal(journal_name: str):
 
     db = chromadb.PersistentClient(path="./storage/chroma")
-    collection_name = "articles_chunk_database"
-    chroma_collection = db.get_or_create_collection(collection_name)
+    chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
     results = chroma_collection.get(where={"journal": journal_name})
 
     return results
@@ -180,8 +179,6 @@ def get_journal(journal_name: str):
 class SummaryRequest(BaseModel):
     journal: str
 
-
-
 def get_llm():
     from RAG_app import get_llm_gemini
     return get_llm_gemini()
@@ -189,8 +186,6 @@ def get_llm():
 @app.post("/api/summary")
 def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
     chunks = get_journal(request.journal)
-    print(chunks['documents'])
-
     full_text = " ".join(chunks['documents'])
 
     prompt = f"""
@@ -202,6 +197,5 @@ def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
     """
 
     response = llm.complete(prompt)
-
     # Print result
     return {"summary": response.text}
