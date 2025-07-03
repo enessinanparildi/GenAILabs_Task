@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG System - Document Search & Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 5px;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-tab {
+            padding: 12px 25px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tab:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+
+        .nav-tab.active {
+            background: rgba(255,255,255,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+        }
+
+        .form-col {
+            flex: 1;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 12px;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover .file-upload-label {
+            background: #e9ecef;
+            border-color: #764ba2;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .result-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .result-score {
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .result-content {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .health-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            z-index: 1000;
+        }
+
+        .health-status.online {
+            background: #28a745;
+        }
+
+        .health-status.offline {
+            background: #dc3545;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .advanced-options {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .advanced-toggle {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .advanced-content {
+            display: none;
+        }
+
+        .advanced-content.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .nav-tabs {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .nav-tab {
+                margin: 0;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .tab-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="health-status" id="healthStatus">
+        <span id="healthText">Checking...</span>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>RAG System</h1>
+            <p>Document Search & Analysis Platform</p>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showTab('search')">Search</button>
+            <button class="nav-tab" onclick="showTab('upload')">Upload</button>
+            <button class="nav-tab" onclick="showTab('summarize')">Summarize</button>
+            <button class="nav-tab" onclick="showTab('compare')">Compare</button>
+        </div>
+
+        <!-- Search Tab -->
+        <div class="tab-content active" id="search">
+            <h2>Document Search</h2>
+            <form id="searchForm">
+                <div class="form-group">
+                    <label for="query">Search Query</label>
+                    <textarea id="query" name="query" placeholder="Enter your search query here..." required></textarea>
+                </div>
+
+                <button type="button" class="advanced-toggle" onclick="toggleAdvanced('searchAdvanced')">
+                    ⚙️ Advanced Options
+                </button>
+
+                <div class="advanced-options">
+                    <div class="advanced-content" id="searchAdvanced">
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label for="k">Number of Results</label>
+                                <select id="k" name="k">
+                                    <option value="5" selected>5</option>
+                                    <option value="10">10</option>
+                                    <option value="15">15</option>
+                                    <option value="20">20</option>
+                                </select>
+                            </div>
+                            <div class="form-col">
+                                <label for="min_score">Minimum Score</label>
+                                <input type="number" id="min_score" name="min_score" value="0.4" step="0.1" min="0" max="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn">Search Documents</button>
+            </form>
+
+            <div class="loading" id="searchLoading">
+                <div class="spinner"></div>
+                <p>Searching documents...</p>
+            </div>
+
+            <div class="results" id="searchResults" style="display: none;">
+                <h3>Search Results</h3>
+                <div id="resultsContainer"></div>
+            </div>
+        </div>
+
+        <!-- Upload Tab -->
+        <div class="tab-content" id="upload">
+            <h2>Upload Documents</h2>
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label for="schema_version">Schema Version</label>
+                    <select id="schema_version" name="schema_version">
+                        <option value="1.0" selected>1.0</option>
+                        <option value="2.0">2.0</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="file_url">File URL</label>
+                    <input type="url" id="file_url" name="file_url" placeholder="https://example.com/document.json">
+                </div>
+
+                <div class="form-group">
+                    <label>OR</label>
+                </div>
+
+                <div class="form-group">
+                    <label for="file_path">File Path</label>
+                    <input type="text" id="file_path" name="file_path" placeholder="/path/to/document.json">
+                </div>
+
+                <div class="form-group">
+                    <label>OR</label>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload File</label>
+                    <div class="file-upload">
+                        <input type="file" id="file" name="file" accept=".json">
+                        <label for="file" class="file-upload-label">
+                            📁 Click to select JSON file or drag & drop
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn">Upload Document</button>
+            </form>
+
+            <div class="loading" id="uploadLoading">
+                <div class="spinner"></div>
+                <p>Uploading document...</p>
+            </div>
+
+            <div class="results" id="uploadResults" style="display: none;">
+                <h3>Upload Results</h3>
+                <div id="uploadResultsContainer"></div>
+            </div>
+        </div>
+
+        <!-- Summarize Tab -->
+        <div class="tab-content" id="summarize">
+            <h2>Journal Summarization</h2>
+            <form id="summarizeForm">
+                <div class="form-group">
+                    <label for="journal">Journal Name</label>
+                    <input type="text" id="journal" name="journal" placeholder="Enter journal name..." required>
+                </div>
+
+                <button type="submit" class="btn">Generate Summary</button>
+            </form>
+
+            <div class="loading" id="summarizeLoading">
+                <div class="spinner"></div>
+                <p>Generating summary...</p>
+            </div>
+
+            <div class="results" id="summarizeResults" style="display: none;">
+                <h3>Summary Results</h3>
+                <div id="summaryContainer"></div>
+            </div>
+        </div>
+
+        <!-- Compare Tab -->
+        <div class="tab-content" id="compare">
+            <h2>Paper Comparison</h2>
+            <form id="compareForm">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="doc_id_1">Document ID 1</label>
+                        <input type="text" id="doc_id_1" name="doc_id_1" placeholder="Enter first document ID..." required>
+                    </div>
+                    <div class="form-col">
+                        <label for="doc_id_2">Document ID 2</label>
+                        <input type="text" id="doc_id_2" name="doc_id_2" placeholder="Enter second document ID..." required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn">Compare Papers</button>
+            </form>
+
+            <div class="loading" id="compareLoading">
+                <div class="spinner"></div>
+                <p>Comparing documents...</p>
+            </div>
+
+            <div class="results" id="compareResults" style="display: none;">
+                <h3>Comparison Results</h3>
+                <div id="comparisonContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            // Remove active class from all tabs
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Advanced options toggle
+        function toggleAdvanced(id) {
+            const content = document.getElementById(id);
+            content.classList.toggle('show');
+        }
+
+        // Health check
+        async function checkHealth() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                const statusEl = document.getElementById('healthStatus');
+                const textEl = document.getElementById('healthText');
+
+                if (data.backend_available) {
+                    statusEl.className = 'health-status online';
+                    textEl.textContent = 'Backend Online';
+                } else {
+                    statusEl.className = 'health-status offline';
+                    textEl.textContent = 'Backend Offline';
+                }
+            } catch (error) {
+                const statusEl = document.getElementById('healthStatus');
+                const textEl = document.getElementById('healthText');
+                statusEl.className = 'health-status offline';
+                textEl.textContent = 'Backend Offline';
+            }
+        }
+
+        // Search form handler
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loading = document.getElementById('searchLoading');
+            const results = document.getElementById('searchResults');
+            const container = document.getElementById('resultsContainer');
+
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displaySearchResults(data, container);
+                    results.style.display = 'block';
+                } else {
+                    showAlert('Search failed. Please try again.', 'error');
+                }
+            } catch (error) {
+                showAlert('Search failed. Please check your connection.', 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Upload form handler
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loading = document.getElementById('uploadLoading');
+            const results = document.getElementById('uploadResults');
+            const container = document.getElementById('uploadResultsContainer');
+
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displayUploadResults(data, container);
+                    results.style.display = 'block';
+                    showAlert('Document uploaded successfully!', 'success');
+                } else {
+                    showAlert('Upload failed. Please try again.', 'error');
+                }
+            } catch (error) {
+                showAlert('Upload failed. Please check your connection.', 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Summarize form handler
+        document.getElementById('summarizeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loading = document.getElementById('summarizeLoading');
+            const results = document.getElementById('summarizeResults');
+            const container = document.getElementById('summaryContainer');
+
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/summarize', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displaySummaryResults(data, container);
+                    results.style.display = 'block';
+                } else {
+                    showAlert('Summarization failed. Please try again.', 'error');
+                }
+            } catch (error) {
+                showAlert('Summarization failed. Please check your connection.', 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Compare form handler
+        document.getElementById('compareForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loading = document.getElementById('compareLoading');
+            const results = document.getElementById('compareResults');
+            const container = document.getElementById('comparisonContainer');
+
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/compare', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displayComparisonResults(data, container);
+                    results.style.display = 'block';
+                } else {
+                    showAlert('Comparison failed. Please try again.', 'error');
+                }
+            } catch (error) {
+                showAlert('Comparison failed. Please check your connection.', 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Display functions
+        function displaySearchResults(data, container) {
+            container.innerHTML = '';
+
+            if (data.results && data.results.length > 0) {
+                data.results.forEach(result => {
+                    const item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.innerHTML = `
+                        <div class="result-title">${result.title || 'Untitled'}</div>
+                        <div class="result-score">Score: ${result.score ? result.score.toFixed(3) : 'N/A'}</div>
+                        <div class="result-content">${result.content || result.text || 'No content available'}</div>
+                    `;
+                    container.appendChild(item);
+                });
+            } else {
+                container.innerHTML = '<p>No results found.</p>';
+            }
+        }
+
+        function displayUploadResults(data, container) {
+            container.innerHTML = `
+                <div class="result-item">
+                    <div class="result-title">Upload Status</div>
+                    <div class="result-content">${JSON.stringify(data, null, 2)}</div>
+                </div>
+            `;
+        }
+
+        function displaySummaryResults(data, container) {
+            container.innerHTML = `
+                <div class="result-item">
+                    <div class="result-title">Summary</div>
+                    <div class="result-content">${data.summary || JSON.stringify(data, null, 2)}</div>
+                </div>
+            `;
+        }
+
+        function displayComparisonResults(data, container) {
+            container.innerHTML = `
+                <div class="result-item">
+                    <div class="result-title">Comparison Results</div>
+                    <div class="result-content">${data.comparison || JSON.stringify(data, null, 2)}</div>
+                </div>
+            `;
+        }
+
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+
+            document.body.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // File upload label update
+        document.getElementById('file').addEventListener('change', function(e) {
+            const label = document.querySelector('.file-upload-label');
+            if (e.target.files.length > 0) {
+                label.textContent = `📁 Selected: ${e.target.files[0].name}`;
+            } else {
+                label.textContent = '📁 Click to select JSON file or drag & drop';
+            }
+        });
+
+        // Initialize
+        checkHealth();
+        setInterval(checkHealth, 30000); // Check health every 30 seconds
+    </script>
+</body>
+</html>

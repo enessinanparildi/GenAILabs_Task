@@ -10,8 +10,6 @@ from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.core.schema import NodeWithScore, TextNode, NodeRelationship, RelatedNodeInfo
 
 
-
-
 def get_llm_gemini() -> GoogleGenAI:
     """
     Initialize and return a Google Gemini AI model instance with safety settings disabled.

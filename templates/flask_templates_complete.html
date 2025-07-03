@@ -1,0 +1,708 @@
+# templates/base.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RAG System{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav-menu {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 10px;
+            backdrop-filter: blur(10px);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .nav-item {
+            padding: 12px 25px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .nav-item.active {
+            background: rgba(255,255,255,0.4);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.6);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+        }
+
+        .form-col {
+            flex: 1;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 12px;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover .file-upload-label {
+            background: #e9ecef;
+            border-color: #764ba2;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .result-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .result-score {
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .result-content {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .advanced-options {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .advanced-toggle {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .advanced-content {
+            display: none;
+        }
+
+        .advanced-content.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .nav-menu {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>RAG System</h1>
+            <p>Document Search & Analysis Platform</p>
+        </div>
+
+        <div class="nav-menu">
+            <a href="/" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">Search</a>
+            <a href="/upload" class="nav-item {% if request.endpoint == 'upload_page' %}active{% endif %}">Upload</a>
+            <a href="/summarize" class="nav-item {% if request.endpoint == 'summarize_page' %}active{% endif %}">Summarize</a>
+            <a href="/compare" class="nav-item {% if request.endpoint == 'compare_page' %}active{% endif %}">Compare</a>
+        </div>
+
+        <div class="content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script>
+        // Advanced options toggle
+        function toggleAdvanced(id) {
+            const content = document.getElementById(id);
+            if (content) {
+                content.classList.toggle('show');
+            }
+        }
+
+        // File upload label update
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('file');
+            if (fileInput) {
+                fileInput.addEventListener('change', function(e) {
+                    const label = document.querySelector('.file-upload-label');
+                    if (e.target.files.length > 0) {
+                        label.textContent = `📁 Selected: ${e.target.files[0].name}`;
+                    } else {
+                        label.textContent = '📁 Click to select JSON file or drag & drop';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
+# templates/flask-templates.html (Main Index)
+{% extends "base.html" %}
+
+{% block title %}RAG System - Search{% endblock %}
+
+{% block content %}
+<h2>Document Search</h2>
+<form method="POST" action="/search">
+    <div class="form-group">
+        <label for="query">Search Query</label>
+        <textarea id="query" name="query" placeholder="Enter your search query here..." required></textarea>
+    </div>
+    
+    <button type="button" class="advanced-toggle" onclick="toggleAdvanced('searchAdvanced')">
+        ⚙️ Advanced Options
+    </button>
+    
+    <div class="advanced-options">
+        <div class="advanced-content" id="searchAdvanced">
+            <div class="form-row">
+                <div class="form-col">
+                    <label for="k">Number of Results</label>
+                    <select id="k" name="k">
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                    </select>
+                </div>
+                <div class="form-col">
+                    <label for="min_score">Minimum Score</label>
+                    <input type="number" id="min_score" name="min_score" value="0.4" step="0.1" min="0" max="1">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn">Search Documents</button>
+</form>
+{% endblock %}
+
+# templates/search_results.html
+{% extends "base.html" %}
+
+{% block title %}Search Results - RAG System{% endblock %}
+
+{% block content %}
+<a href="/" class="back-link">← Back to Search</a>
+
+<h2>Search Results</h2>
+<p><strong>Query:</strong> {{ query }}</p>
+<p><strong>Results:</strong> {{ results|length }} documents found (K={{ k }}, Min Score={{ min_score }})</p>
+
+<div class="results">
+    {% if results %}
+        {% for result in results %}
+            <div class="result-item">
+                <div class="result-title">
+                    {% if result.metadata and result.metadata.title %}
+                        {{ result.metadata.title }}
+                    {% elif result.title %}
+                        {{ result.title }}
+                    {% else %}
+                        Document {{ loop.index }}
+                    {% endif %}
+                </div>
+                
+                {% if result.score %}
+                    <div class="result-score">Similarity Score: {{ "%.3f"|format(result.score) }}</div>
+                {% endif %}
+                
+                <div class="result-content">
+                    {% if result.page_content %}
+                        {{ result.page_content[:500] }}{% if result.page_content|length > 500 %}...{% endif %}
+                    {% elif result.text %}
+                        {{ result.text[:500] }}{% if result.text|length > 500 %}...{% endif %}
+                    {% elif result.content %}
+                        {{ result.content[:500] }}{% if result.content|length > 500 %}...{% endif %}
+                    {% else %}
+                        No content available
+                    {% endif %}
+                </div>
+                
+                {% if result.metadata %}
+                    <div class="result-metadata" style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                        <strong>Metadata:</strong>
+                        {% for key, value in result.metadata.items() %}
+                            <span style="margin-right: 15px;"><strong>{{ key }}:</strong> {{ value }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No results found for your query.</p>
+    {% endif %}
+</div>
+
+<div style="margin-top: 30px; text-align: center;">
+    <a href="/" class="btn">New Search</a>
+</div>
+{% endblock %}
+
+# templates/upload.html
+{% extends "base.html" %}
+
+{% block title %}Upload Documents - RAG System{% endblock %}
+
+{% block content %}
+<h2>Upload Documents</h2>
+<form method="POST" action="/upload" enctype="multipart/form-data">
+    <div class="form-group">
+        <label for="schema_version">Schema Version</label>
+        <select id="schema_version" name="schema_version">
+            <option value="1.0" selected>1.0</option>
+            <option value="2.0">2.0</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="file_url">File URL</label>
+        <input type="url" id="file_url" name="file_url" placeholder="https://example.com/document.json">
+        <small style="color: #666;">Enter a URL to a JSON document</small>
+    </div>
+
+    <div class="form-group">
+        <label>OR</label>
+        <hr style="margin: 10px 0;">
+    </div>
+
+    <div class="form-group">
+        <label for="file_path">File Path</label>
+        <input type="text" id="file_path" name="file_path" placeholder="/path/to/document.json">
+        <small style="color: #666;">Enter a local file path</small>
+    </div>
+
+    <div class="form-group">
+        <label>OR</label>
+        <hr style="margin: 10px 0;">
+    </div>
+
+    <div class="form-group">
+        <label>Upload File</label>
+        <div class="file-upload">
+            <input type="file" id="file" name="file" accept=".json">
+            <label for="file" class="file-upload-label">
+                📁 Click to select JSON file or drag & drop
+            </label>
+        </div>
+        <small style="color: #666;">Only JSON files are supported</small>
+    </div>
+
+    <button type="submit" class="btn">Upload Document</button>
+</form>
+{% endblock %}
+
+# templates/upload_success.html
+{% extends "base.html" %}
+
+{% block title %}Upload Success - RAG System{% endblock %}
+
+{% block content %}
+<a href="/upload" class="back-link">← Back to Upload</a>
+
+<h2>Upload Successful</h2>
+<div class="results">
+    <div class="result-item">
+        <div class="result-title">Upload Details</div>
+        <div class="result-content">
+            {% if result %}
+                <pre style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace;">{{ result | tojson(indent=2) }}</pre>
+            {% else %}
+                <p>Document uploaded successfully!</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div style="margin-top: 30px; text-align: center;">
+    <a href="/upload" class="btn">Upload Another Document</a>
+    <a href="/" class="btn btn-secondary">Go to Search</a>
+</div>
+{% endblock %}
+
+# templates/summarize.html
+{% extends "base.html" %}
+
+{% block title %}Summarize Journal - RAG System{% endblock %}
+
+{% block content %}
+<h2>Journal Summarization</h2>
+<form method="POST" action="/summarize">
+    <div class="form-group">
+        <label for="journal">Journal Name</label>
+        <input type="text" id="journal" name="journal" placeholder="Enter journal name..." required>
+        <small style="color: #666;">Enter the name of the journal you want to summarize</small>
+    </div>
+
+    <button type="submit" class="btn">Generate Summary</button>
+</form>
+{% endblock %}
+
+# templates/summary_results.html
+{% extends "base.html" %}
+
+{% block title %}Summary Results - RAG System{% endblock %}
+
+{% block content %}
+<a href="/summarize" class="back-link">← Back to Summarize</a>
+
+<h2>Summary Results</h2>
+<p><strong>Journal:</strong> {{ journal }}</p>
+
+<div class="results">
+    <div class="result-item">
+        <div class="result-title">Journal Summary</div>
+        <div class="result-content">
+            {% if summary.summary %}
+                {{ summary.summary }}
+            {% elif summary %}
+                <pre style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace;">{{ summary | tojson(indent=2) }}</pre>
+            {% else %}
+                <p>No summary available for this journal.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if summary.statistics %}
+        <div class="result-item">
+            <div class="result-title">Statistics</div>
+            <div class="result-content">
+                <pre style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace;">{{ summary.statistics | tojson(indent=2) }}</pre>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<div style="margin-top: 30px; text-align: center;">
+    <a href="/summarize" class="btn">Summarize Another Journal</a>
+    <a href="/" class="btn btn-secondary">Go to Search</a>
+</div>
+{% endblock %}
+
+# templates/compare.html
+{% extends "base.html" %}
+
+{% block title %}Compare Papers - RAG System{% endblock %}
+
+{% block content %}
+<h2>Paper Comparison</h2>
+<form method="POST" action="/compare">
+    <div class="form-row">
+        <div class="form-col">
+            <label for="doc_id_1">Document ID 1</label>
+            <input type="text" id="doc_id_1" name="doc_id_1" placeholder="Enter first document ID..." required>
+        </div>
+        <div class="form-col">
+            <label for="doc_id_2">Document ID 2</label>
+            <input type="text" id="doc_id_2" name="doc_id_2" placeholder="Enter second document ID..." required>
+        </div>
+    </div>
+
+    <button type="submit" class="btn">Compare Papers</button>
+</form>
+{% endblock %}
+
+# templates/comparison_results.html
+{% extends "base.html" %}
+
+{% block title %}Comparison Results - RAG System{% endblock %}
+
+{% block content %}
+<a href="/compare" class="back-link">← Back to Compare</a>
+
+<h2>Comparison Results</h2>
+<p><strong>Document 1 ID:</strong> {{ doc_id_1 }}</p>
+<p><strong>Document 2 ID:</strong> {{ doc_id_2 }}</p>
+
+<div class="results">
+    <div class="result-item">
+        <div class="result-title">Comparison Analysis</div>
+        <div class="result-content">
+            {% if comparison.comparison %}
+                {{ comparison.comparison }}
+            {% elif comparison %}
+                <pre style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace;">{{ comparison | tojson(indent=2) }}</pre>
+            {% else %}
+                <p>No comparison data available.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if comparison.similarities %}
+        <div class="result-item">
+            <div class="result-title">Similarities</div>
+            <div class="result-content">
+                {% for similarity in comparison.similarities %}
+                    <p>• {{ similarity }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+    
+    {% if comparison.differences %}
+        <div class="result-item">
+            <div class="result-title">Differences</div>
+            <div class="result-content">
+                {% for difference in comparison.differences %}
+                    <p>• {{ difference }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<div style="margin-top: 30px; text-align: center;">
+    <a href="/compare" class="btn">Compare Other Papers</a>
+    <a href="/" class="btn btn-secondary">Go to Search</a>
+</div>
+{% endblock %}
+
+# templates/404.html
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - RAG System{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 50px 0;">
+    <h1 style="font-size: 6rem; color: #667eea; margin-bottom: 20px;">404</h1>
+    <h2 style="margin-bottom: 20px;">Page Not Found</h2>
+    <p style="margin-bottom: 30px; color: #666;">The page you're looking for doesn't exist.</p>
+    <a href="/" class="btn">Go Home</a>
+</div>
+{% endblock %}
+
+# templates/500.html
+{% extends "base.html" %}
+
+{% block title %}Server Error - RAG System{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 50px 0;">
+    <h1 style="font-size: 6rem; color: #dc3545; margin-bottom: 20px;">500</h1>
+    <h2 style="margin-bottom: 20px;">Internal Server Error</h2>
+    <p style="margin-bottom: 30px; color: #666;">Something went wrong on our end. Please try again later.</p>
+    <a href="/" class="btn">Go Home</a>
+</div>
+{% endblock %}
