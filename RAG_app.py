@@ -9,7 +9,6 @@ from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.core import Settings
 from llama_index.core.schema import NodeWithScore, TextNode, NodeRelationship, RelatedNodeInfo
 
-gemini_api_key_2 = "AIzaSyAwuWjXxwb1pOfUaq_fp_o-aM8VlwJT9OQ"
 
 
 def start_server():
