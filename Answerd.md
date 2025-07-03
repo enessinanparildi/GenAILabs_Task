@@ -44,4 +44,12 @@ The /api/compare_papers endpoint takes two document IDs, retrieves their associa
 
 ### Persistent Usage Tracking
 
-I added a utility function that updates the usage_count for the rows in the database that are returned_
+I added a utility function that updates the usage_count for the rows in the database that are returned by a similarity query.
+
+## A Unit Test Suite
+
+I added some test functions with the help of Claude 4 to validate the upload/ingestion logic and the summary endpoint. I could have made the tests more comprehensive, but I didn't have much time. The main RAG_app script also implicitly runs tests.
+
+## Frontend UI
+
+I implemented a simple Flask app as the frontend with the help of Claude 4. While it’s far from perfect, I didn’t have much time to refine it. Frontend development isn’t my primary area of expertise, but I’m confident I can quickly get up to speed if needed.
