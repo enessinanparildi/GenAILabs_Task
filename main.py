@@ -164,8 +164,9 @@ def search(query_dict: SearchPayload):
 
     results = retriever.retrieve(query_dict.query)
     filtered_results = [r for r in results if r.score >= query_dict.min_score]
+    result_test_list = [result.node.text for result in filtered_results]
 
-    return filtered_results
+    return {"result_test_list" :result_test_list, "filtered_results": filtered_results}
 
 
 @app.get("/api/{journal_id}")
@@ -190,6 +191,13 @@ def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
     chunks = get_journal(request.journal)
     full_text = " ".join(chunks['documents'])
 
+    if not full_text.strip():
+        return {
+            "summary": "No content to summarize.",
+            "message": f"No content found for journal: {request.journal}"
+        }
+
+
     prompt = f"""
     You are a scientific research assistant. Summarize the following journal content:
 
@@ -200,7 +208,7 @@ def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
 
     response = llm.complete(prompt)
     # Print result
-    return {"summary": response.text}
+    return {"summary": response.text, "message": "Success"}
 
 class CompareRequest(BaseModel):
     doc_id_1: str
@@ -215,8 +223,11 @@ def compare_papers(request: CompareRequest, llm = Depends(get_llm)):
     chunks = get_journal(request.doc_id_2)
     full_text_2 = " ".join(chunks['documents'])
 
-
-    # Merge into full text
+    if not full_text_1.strip() or not full_text_2.strip():
+        return {
+            "comparison": "No content to comapre.",
+            "message": f"No content found for journals"
+        }
 
     # Construct prompt
     prompt = f"""
@@ -238,4 +249,4 @@ def compare_papers(request: CompareRequest, llm = Depends(get_llm)):
 
     response = llm.complete(prompt)
 
-    return {"comparison": response.text}
+    return {"comparison": response.text,  "message": "Success"}
