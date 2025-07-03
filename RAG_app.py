@@ -11,7 +11,6 @@ from llama_index.core.schema import NodeWithScore, TextNode, NodeRelationship, R
 
 
 COLLECTION_NAME = "articles_chunk_database_new"
-gemini_api_key_2 = "AIzaSyAwuWjXxwb1pOfUaq_fp_o-aM8VlwJT9OQ"
 
 def start_server():
     uvicorn.run("main:app", host="127.0.0.1", port=8000)
