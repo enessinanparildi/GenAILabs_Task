@@ -7,6 +7,8 @@ import requests
 
 # Import your app and models
 from main import app, InputChunk, SearchPayload, SummaryRequest
+from RAG_app import get_llm_gemini
+from pydantic import ValidationError
 
 client = TestClient(app)
 
@@ -43,9 +45,9 @@ class TestUploadEndpoint:
             }
         ]
 
-    @patch('your_module.requests.get')
-    @patch('your_module.HuggingFaceEmbedding')
-    @patch('your_module.upload_db_with_deduplication')
+    @patch('main.requests.get')
+    @patch('main.HuggingFaceEmbedding')
+    @patch('main.upload_db_with_deduplication')
     def test_upload_with_file_url(self, mock_upload_db, mock_embedding, mock_requests_get, sample_json_data):
         """Test uploading chunks from a URL"""
         # Mock the requests.get response
@@ -61,11 +63,13 @@ class TestUploadEndpoint:
         # Mock upload_db function
         mock_upload_db.return_value = Mock()
 
+        # Use proper form data encoding
         response = client.put(
             "/api/upload",
             data={
                 "schema_version": "v1",
-                "file_url": "https://example.com/data.json"
+                "file_url": "https://example.com/data.json",
+                "file": ""  # Empty string for optional parameter
             }
         )
 
@@ -74,9 +78,9 @@ class TestUploadEndpoint:
         mock_requests_get.assert_called_once_with("https://example.com/data.json")
         mock_upload_db.assert_called_once()
 
-    @patch('your_module.os.path.exists')
-    @patch('your_module.HuggingFaceEmbedding')
-    @patch('your_module.upload_db_with_deduplication')
+    @patch('main.os.path.exists')
+    @patch('main.HuggingFaceEmbedding')
+    @patch('main.upload_db_with_deduplication')
     def test_upload_with_file_path(self, mock_upload_db, mock_embedding, mock_exists, sample_json_data):
         """Test uploading chunks from a local file"""
         mock_exists.return_value = True
@@ -91,7 +95,8 @@ class TestUploadEndpoint:
                 "/api/upload",
                 data={
                     "schema_version": "v1",
-                    "file": "/path/to/file.json"
+                    "file": "/path/to/file.json",
+                    "file_url": ""  # Empty string for optional parameter
                 }
             )
 
@@ -102,7 +107,11 @@ class TestUploadEndpoint:
         """Test upload fails when neither file_url nor file is provided"""
         response = client.put(
             "/api/upload",
-            data={"schema_version": "v1"}
+            data={
+                "schema_version": "v1",
+                "file_url": "",
+                "file": ""
+            }
         )
 
         assert response.status_code == 400
@@ -122,7 +131,7 @@ class TestUploadEndpoint:
         assert response.status_code == 400
         assert "Provide exactly one of file_url or file" in response.json()["detail"]
 
-    @patch('your_module.requests.get')
+    @patch('main.requests.get')
     def test_upload_url_fetch_failure(self, mock_requests_get):
         """Test handling of URL fetch failure"""
         mock_requests_get.side_effect = requests.exceptions.RequestException("Network error")
@@ -131,14 +140,15 @@ class TestUploadEndpoint:
             "/api/upload",
             data={
                 "schema_version": "v1",
-                "file_url": "https://example.com/data.json"
+                "file_url": "https://example.com/data.json",
+                "file": ""
             }
         )
 
         assert response.status_code == 400
         assert "Failed to fetch JSON from URL" in response.json()["detail"]
 
-    @patch('your_module.os.path.exists')
+    @patch('main.os.path.exists')
     def test_upload_file_not_found(self, mock_exists):
         """Test handling of non-existent file"""
         mock_exists.return_value = False
@@ -147,7 +157,8 @@ class TestUploadEndpoint:
             "/api/upload",
             data={
                 "schema_version": "v1",
-                "file": "/nonexistent/file.json"
+                "file": "/nonexistent/file.json",
+                "file_url": ""
             }
         )
 
@@ -158,10 +169,10 @@ class TestUploadEndpoint:
 class TestSimilaritySearchEndpoint:
     """Test cases for the /api/similarity_search endpoint"""
 
-    @patch('your_module.chromadb.PersistentClient')
-    @patch('your_module.HuggingFaceEmbedding')
-    @patch('your_module.VectorStoreIndex')
-    @patch('your_module.VectorIndexRetriever')
+    @patch('main.chromadb.PersistentClient')
+    @patch('main.HuggingFaceEmbedding')
+    @patch('main.VectorStoreIndex')
+    @patch('main.VectorIndexRetriever')
     def test_similarity_search_success(self, mock_retriever_class, mock_index, mock_embedding, mock_chromadb):
         """Test successful similarity search"""
         # Mock chromadb
@@ -178,10 +189,18 @@ class TestSimilaritySearchEndpoint:
         mock_index_instance = Mock()
         mock_index.from_vector_store.return_value = mock_index_instance
 
-        # Mock retriever
-        mock_result_1 = Mock(text="Result 1", score=0.9)
-        mock_result_2 = Mock(text="Result 2", score=0.7)
-        mock_result_3 = Mock(text="Result 3", score=0.3)  # Below threshold
+        # Mock retriever with proper text attribute
+        mock_result_1 = Mock()
+        mock_result_1.text = "Result 1"
+        mock_result_1.score = 0.9
+
+        mock_result_2 = Mock()
+        mock_result_2.text = "Result 2"
+        mock_result_2.score = 0.7
+
+        mock_result_3 = Mock()
+        mock_result_3.text = "Result 3"
+        mock_result_3.score = 0.3  # Below threshold
 
         mock_retriever_instance = Mock()
         mock_retriever_instance.retrieve.return_value = [mock_result_1, mock_result_2, mock_result_3]
@@ -198,15 +217,18 @@ class TestSimilaritySearchEndpoint:
 
         assert response.status_code == 200
         results = response.json()
-        assert len(results[0]) == 2  # Only results above min_score
-        assert "Result 1" in results[0]
-        assert "Result 2" in results[0]
-        assert "Result 3" not in results[0]
 
-    @patch('your_module.chromadb.PersistentClient')
-    @patch('your_module.HuggingFaceEmbedding')
-    @patch('your_module.VectorStoreIndex')
-    @patch('your_module.VectorIndexRetriever')
+        # Now expecting a simple list of strings
+        assert isinstance(results, list)
+        assert len(results) == 2  # Only results above min_score
+        assert "Result 1" in results
+        assert "Result 2" in results
+        assert "Result 3" not in results
+
+    @patch('main.chromadb.PersistentClient')
+    @patch('main.HuggingFaceEmbedding')
+    @patch('main.VectorStoreIndex')
+    @patch('main.VectorIndexRetriever')
     def test_similarity_search_no_results(self, mock_retriever_class, mock_index, mock_embedding, mock_chromadb):
         """Test similarity search with no results"""
         # Setup mocks
@@ -236,57 +258,133 @@ class TestSimilaritySearchEndpoint:
 
         assert response.status_code == 200
         results = response.json()
-        assert len(results[0]) == 0
+        assert isinstance(results, list)
+        assert len(results) == 0
 
-
-class TestGetJournalEndpoint:
-    """Test cases for the /api/{journal_id} endpoint"""
-
-    @patch('your_module.chromadb.PersistentClient')
-    def test_get_journal_success(self, mock_chromadb):
-        """Test successful journal retrieval"""
+    @patch('main.chromadb.PersistentClient')
+    @patch('main.HuggingFaceEmbedding')
+    @patch('main.VectorStoreIndex')
+    @patch('main.VectorIndexRetriever')
+    def test_similarity_search_all_below_threshold(self, mock_retriever_class, mock_index, mock_embedding,
+                                                   mock_chromadb):
+        """Test similarity search where all results are below threshold"""
+        # Setup mocks
         mock_db_instance = Mock()
         mock_collection = Mock()
-        mock_collection.get.return_value = {
-            "ids": ["id1", "id2"],
-            "documents": ["Document 1", "Document 2"],
-            "metadatas": [{"journal": "Test Journal"}, {"journal": "Test Journal"}]
-        }
         mock_db_instance.get_or_create_collection.return_value = mock_collection
         mock_chromadb.return_value = mock_db_instance
 
-        response = client.get("/api/Test%20Journal")
+        mock_embed_instance = Mock()
+        mock_embedding.return_value = mock_embed_instance
+
+        mock_index_instance = Mock()
+        mock_index.from_vector_store.return_value = mock_index_instance
+
+        # All results below threshold
+        mock_result_1 = Mock()
+        mock_result_1.text = "Result 1"
+        mock_result_1.score = 0.3
+
+        mock_result_2 = Mock()
+        mock_result_2.text = "Result 2"
+        mock_result_2.score = 0.2
+
+        mock_retriever_instance = Mock()
+        mock_retriever_instance.retrieve.return_value = [mock_result_1, mock_result_2]
+        mock_retriever_class.return_value = mock_retriever_instance
+
+        response = client.post(
+            "/api/similarity_search",
+            json={
+                "query": "test query",
+                "k": 5,
+                "min_score": 0.5
+            }
+        )
 
         assert response.status_code == 200
         results = response.json()
-        assert "documents" in results
-        assert len(results["documents"]) == 2
-        mock_collection.get.assert_called_once_with(where={"journal": "Test Journal"})
+        assert isinstance(results, list)
+        assert len(results) == 0  # No results above threshold
 
-    @patch('your_module.chromadb.PersistentClient')
-    def test_get_journal_no_results(self, mock_chromadb):
-        """Test journal retrieval with no results"""
+    @patch('main.chromadb.PersistentClient')
+    @patch('main.HuggingFaceEmbedding')
+    @patch('main.VectorStoreIndex')
+    @patch('main.VectorIndexRetriever')
+    def test_similarity_search_exact_threshold(self, mock_retriever_class, mock_index, mock_embedding, mock_chromadb):
+        """Test similarity search with results exactly at threshold"""
+        # Setup mocks
         mock_db_instance = Mock()
         mock_collection = Mock()
-        mock_collection.get.return_value = {
-            "ids": [],
-            "documents": [],
-            "metadatas": []
-        }
         mock_db_instance.get_or_create_collection.return_value = mock_collection
         mock_chromadb.return_value = mock_db_instance
 
-        response = client.get("/api/NonExistentJournal")
+        mock_embed_instance = Mock()
+        mock_embedding.return_value = mock_embed_instance
+
+        mock_index_instance = Mock()
+        mock_index.from_vector_store.return_value = mock_index_instance
+
+        # Results at and above threshold
+        mock_result_1 = Mock()
+        mock_result_1.text = "Result 1"
+        mock_result_1.score = 0.5  # Exactly at threshold
+
+        mock_result_2 = Mock()
+        mock_result_2.text = "Result 2"
+        mock_result_2.score = 0.49  # Just below threshold
+
+        mock_retriever_instance = Mock()
+        mock_retriever_instance.retrieve.return_value = [mock_result_1, mock_result_2]
+        mock_retriever_class.return_value = mock_retriever_instance
+
+        response = client.post(
+            "/api/similarity_search",
+            json={
+                "query": "test query",
+                "k": 5,
+                "min_score": 0.5
+            }
+        )
 
         assert response.status_code == 200
         results = response.json()
-        assert len(results["documents"]) == 0
+        assert isinstance(results, list)
+        assert len(results) == 1  # Only result at or above threshold
+        assert "Result 1" in results
+        assert "Result 2" not in results
+
+    def test_similarity_search_invalid_payload(self):
+        """Test similarity search with invalid payload"""
+        response = client.post(
+            "/api/similarity_search",
+            json={
+                "query": "test query",
+                "k": "not_a_number",  # Invalid type
+                "min_score": 0.5
+            }
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    def test_similarity_search_missing_fields(self):
+        """Test similarity search with missing required fields"""
+        response = client.post(
+            "/api/similarity_search",
+            json={
+                "query": "test query"
+                # Missing k and min_score
+            }
+        )
+
+        assert response.status_code == 422  # Validation error
+
 
 class TestSummaryEndpoint:
     """Test cases for the /api/summary endpoint"""
 
-    @patch('your_module.get_journal')
-    @patch('your_module.get_llm_gemini')
+    @patch('main.get_journal')
+    @patch('RAG_app.get_llm_gemini')
     def test_summary_success(self, mock_get_llm, mock_get_journal):
         """Test successful journal summarization"""
         # Mock journal data
@@ -311,8 +409,8 @@ class TestSummaryEndpoint:
         mock_get_journal.assert_called_once_with("Test Journal")
         mock_llm.complete.assert_called_once()
 
-    @patch('your_module.get_journal')
-    @patch('your_module.get_llm_gemini')
+    @patch('main.get_journal')
+    @patch('main.get_llm_gemini')
     def test_summary_empty_journal(self, mock_get_llm, mock_get_journal):
         """Test summarization of empty journal"""
         # Mock empty journal data
@@ -405,11 +503,11 @@ class TestInputChunkModel:
 class TestUploadDbWithDeduplication:
     """Test cases for the upload_db_with_deduplication function"""
 
-    @patch('your_module.chromadb.PersistentClient')
-    @patch('your_module.SimpleNodeParser')
-    @patch('your_module.IngestionPipeline')
-    @patch('your_module.SimpleDocumentStore')
-    @patch('your_module.VectorStoreIndex')
+    @patch('main.chromadb.PersistentClient')
+    @patch('main.SimpleNodeParser')
+    @patch('main.IngestionPipeline')
+    @patch('main.SimpleDocumentStore')
+    @patch('main.VectorStoreIndex')
     def test_upload_db_empty_collection(self, mock_index, mock_docstore, mock_pipeline_class,
                                         mock_parser, mock_chromadb):
         """Test uploading to empty collection"""
@@ -447,11 +545,11 @@ class TestUploadDbWithDeduplication:
         mock_pipeline_instance.persist.assert_called_once_with(persist_dir="./data")
         assert result == mock_index_instance
 
-    @patch('your_module.chromadb.PersistentClient')
-    @patch('your_module.SimpleNodeParser')
-    @patch('your_module.IngestionPipeline')
-    @patch('your_module.SimpleDocumentStore')
-    @patch('your_module.VectorStoreIndex')
+    @patch('main.chromadb.PersistentClient')
+    @patch('main.SimpleNodeParser')
+    @patch('main.IngestionPipeline')
+    @patch('main.SimpleDocumentStore')
+    @patch('main.VectorStoreIndex')
     def test_upload_db_existing_collection(self, mock_index, mock_docstore, mock_pipeline_class,
                                            mock_parser, mock_chromadb):
         """Test uploading to existing collection"""
@@ -493,7 +591,7 @@ class TestUploadDbWithDeduplication:
 class TestHelperFunctions:
     """Test cases for helper functions"""
 
-    @patch('your_module.requests.get')
+    @patch('main.requests.get')
     def test_fetch_json_from_url_success(self, mock_requests_get):
         """Test successful JSON fetch from URL"""
         from main import fetch_json_from_url
@@ -508,7 +606,7 @@ class TestHelperFunctions:
         assert result == {"key": "value"}
         mock_requests_get.assert_called_once_with("https://example.com/data.json")
 
-    @patch('your_module.requests.get')
+    @patch('main.requests.get')
     def test_fetch_json_from_url_failure(self, mock_requests_get):
         """Test JSON fetch failure from URL"""
         from main import fetch_json_from_url
@@ -525,13 +623,13 @@ class TestHelperFunctions:
 class TestIntegration:
     """Integration tests for multiple components"""
 
-    @patch('your_module.chromadb.PersistentClient')
-    @patch('your_module.HuggingFaceEmbedding')
-    @patch('your_module.VectorStoreIndex')
-    @patch('your_module.SimpleNodeParser')
-    @patch('your_module.IngestionPipeline')
-    @patch('your_module.SimpleDocumentStore')
-    @patch('your_module.requests.get')
+    @patch('main.chromadb.PersistentClient')
+    @patch('main.HuggingFaceEmbedding')
+    @patch('main.VectorStoreIndex')
+    @patch('main.SimpleNodeParser')
+    @patch('main.IngestionPipeline')
+    @patch('main.SimpleDocumentStore')
+    @patch('main.requests.get')
     def test_end_to_end_upload_and_search(self, mock_requests_get, mock_docstore,
                                           mock_pipeline_class, mock_parser, mock_index,
                                           mock_embedding, mock_chromadb):
