@@ -1,8 +1,5 @@
-from typing import Union
-
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import VectorStoreIndex
-from llama_index.core import StorageContext
 from llama_index.core.schema import Document
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -10,10 +7,12 @@ from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.storage.docstore import SimpleDocumentStore
 from llama_index.core.ingestion import IngestionPipeline
 from fastapi import Depends
-from RAG_app import get_llm_gemini
+from utils import get_llm_gemini
 
 import json
 import chromadb
+import requests
+import os
 
 from pydantic import BaseModel, HttpUrl
 from pydantic import ValidationError
@@ -21,8 +20,6 @@ from pydantic import ValidationError
 from typing import Optional, List
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 from fastapi.responses import JSONResponse
-import requests
-import os
 
 app = FastAPI()
 
@@ -33,6 +30,7 @@ class SearchPayload(BaseModel):
     query: str
     k: int
     min_score: float
+
 
 class InputChunk(BaseModel):
     id: str
@@ -51,16 +49,15 @@ def fetch_json_from_url(file_url: str):
     try:
         response = requests.get(file_url)
         response.raise_for_status()  # Raises HTTPError for bad status codes
-        data = response.json()       # Parses JSON response
+        data = response.json()  # Parses JSON response
         return data
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Failed to fetch JSON from URL: {e}")
 
+
 @app.put("/api/upload")
 def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form(None),
                  file: Optional[str] = Form(...)):
-
-
     if (not file_url and not file) or (file_url and file):
         raise HTTPException(status_code=400, detail="Provide exactly one of file_url or file")
 
@@ -116,8 +113,8 @@ def upload_chunk(schema_version: str = Form(...), file_url: Optional[str] = Form
         content={"message": f"Processing file from URL {file_url} with schema {schema_version}"}
     )
 
-def upload_db_with_deduplication(documents, embed_model):
 
+def upload_db_with_deduplication(documents, embed_model):
     db = chromadb.PersistentClient(path="./storage/chroma")
     chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
@@ -145,9 +142,9 @@ def upload_db_with_deduplication(documents, embed_model):
     chroma_index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
     return chroma_index
 
+
 @app.post("/api/similarity_search")
 def search(query_dict: SearchPayload):
-
     embed_model = HuggingFaceEmbedding(model_name="BAAI/llm-embedder", device="cuda")
 
     db = chromadb.PersistentClient(path="./storage/chroma")
@@ -166,12 +163,11 @@ def search(query_dict: SearchPayload):
     filtered_results = [r for r in results if r.score >= query_dict.min_score]
     result_test_list = [result.node.text for result in filtered_results]
 
-    return {"result_test_list" :result_test_list, "filtered_results": filtered_results}
+    return {"result_test_list": result_test_list, "filtered_results": filtered_results}
 
 
 @app.get("/api/{journal_id}")
 def get_journal(journal_name: str):
-
     db = chromadb.PersistentClient(path="./storage/chroma")
     chroma_collection = db.get_or_create_collection(COLLECTION_NAME)
     results = chroma_collection.get(where={"source_doc_id": journal_name})
@@ -182,12 +178,14 @@ def get_journal(journal_name: str):
 class SummaryRequest(BaseModel):
     journal: str
 
+
 def get_llm():
-    from RAG_app import get_llm_gemini
+    from utils import get_llm_gemini
     return get_llm_gemini()
 
+
 @app.post("/api/summary")
-def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
+def summarize_journal(request: SummaryRequest, llm=Depends(get_llm)):
     chunks = get_journal(request.journal)
     full_text = " ".join(chunks['documents'])
 
@@ -196,7 +194,6 @@ def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
             "summary": "No content to summarize.",
             "message": f"No content found for journal: {request.journal}"
         }
-
 
     prompt = f"""
     You are a scientific research assistant. Summarize the following journal content:
@@ -210,12 +207,14 @@ def summarize_journal(request: SummaryRequest,  llm = Depends(get_llm)):
     # Print result
     return {"summary": response.text, "message": "Success"}
 
+
 class CompareRequest(BaseModel):
     doc_id_1: str
     doc_id_2: str
 
+
 @app.post("/api/compare_papers")
-def compare_papers(request: CompareRequest, llm = Depends(get_llm)):
+def compare_papers(request: CompareRequest, llm=Depends(get_llm)):
     # Retrieve document chunks
     chunks = get_journal(request.doc_id_1)
     full_text_1 = " ".join(chunks['documents'])
@@ -225,7 +224,7 @@ def compare_papers(request: CompareRequest, llm = Depends(get_llm)):
 
     if not full_text_1.strip() or not full_text_2.strip():
         return {
-            "comparison": "No content to comapre.",
+            "comparison": "No content to compare.",
             "message": f"No content found for journals"
         }
 
@@ -249,4 +248,4 @@ def compare_papers(request: CompareRequest, llm = Depends(get_llm)):
 
     response = llm.complete(prompt)
 
-    return {"comparison": response.text,  "message": "Success"}
+    return {"comparison": response.text, "message": "Success"}
