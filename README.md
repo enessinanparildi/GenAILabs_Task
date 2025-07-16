@@ -2,7 +2,7 @@
 
 A FastAPI-based Retrieval-Augmented Generation (RAG) system that provides document indexing, semantic search, summarization, and comparison capabilities using ChromaDB and LlamaIndex.
 
-## 🚀 Features
+##  Features
 
 - **Document Indexing**: Upload and index document chunks from JSON files or URLs
 - **Semantic Search**: Perform similarity search on indexed documents using HuggingFace embeddings
@@ -11,7 +11,7 @@ A FastAPI-based Retrieval-Augmented Generation (RAG) system that provides docume
 - **Usage Tracking**: Monitor document access patterns and usage statistics
 - **Citation Support**: Automatic citation generation for retrieved content
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -26,14 +26,14 @@ A FastAPI-based Retrieval-Augmented Generation (RAG) system that provides docume
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Python 3.8+
 - CUDA-compatible GPU (recommended for embeddings)
 - Google Gemini API key
 - Required Python packages (see requirements below)
 
-## 🔧 Installation
+## Installation
 
 1. **Clone the repository**
    ```bash
@@ -65,7 +65,7 @@ A FastAPI-based Retrieval-Augmented Generation (RAG) system that provides docume
    mkdir -p storage/chroma data
    ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Start the Server
 
@@ -103,7 +103,7 @@ curl -X POST "http://localhost:8000/api/similarity_search" \
   }'
 ```
 
-## 📊 Data Format
+## Data Format
 
 ### Input JSON Structure
 
@@ -141,7 +141,7 @@ Your `sample_chunks.json` should follow this schema:
 | `link` | string (URL) | Link to original document |
 | `text` | string | The actual text content |
 
-## 🔌 API Endpoints
+## API Endpoints
 
 ### Document Management
 
@@ -234,7 +234,7 @@ response = requests.post("http://localhost:8000/api/compare_papers",
 
 
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -267,7 +267,7 @@ This will:
 4. Test summarization and comparison
 5. Display usage statistics
 
-## 📁 File Structure
+## File Structure
 
 ```
 rag-system/
@@ -282,7 +282,7 @@ rag-system/
 └── README.md           # This documentation
 ```
 
-## 🔍 Core Components
+## Core Components
 
 ### main.py
 - FastAPI application setup
@@ -302,7 +302,7 @@ rag-system/
 - Node conversion utilities
 - Safety settings configuration
 
-## 🎯 Performance Considerations
+## Performance Considerations
 
 - **GPU Acceleration**: Uses CUDA for embedding generation
 - **Batch Processing**: Efficient batch operations for large document sets
@@ -310,13 +310,13 @@ rag-system/
 - **Persistent Storage**: ChromaDB provides efficient vector storage
 - **Usage Tracking**: Monitors document access patterns for optimization
 
-## 🔒 Security Notes
+## Security Notes
 
 - The Gemini LLM is configured with safety filters disabled for research purposes
 - Ensure proper API key management and environment variable security
 - Consider implementing authentication for production deployments
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -324,11 +324,11 @@ rag-system/
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -358,14 +358,14 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 ```
 
-## 📞 Support
+## Support
 
 For issues and questions:
 - Create an issue in the GitHub repository
 - Check the troubleshooting section
 - Review the API documentation
 
-## 🎉 Acknowledgments
+## Acknowledgments
 
 - [LlamaIndex](https://github.com/run-llama/llama_index) for RAG framework
 - [ChromaDB](https://github.com/chroma-core/chroma) for vector storage
