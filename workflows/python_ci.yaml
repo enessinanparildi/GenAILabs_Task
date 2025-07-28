@@ -1,23 +1,23 @@
-name: Run Tests on Self-Hosted
+name: Run Pytest
 
 on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest
 
-      - name: Run tests
-        run: pytest
+    - name: Run tests
+      run: pytest
